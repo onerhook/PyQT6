@@ -54,4 +54,41 @@ class PasswordManager(QMainWindow):
         for row_number, row_data in enumerate(passwords):
             self.table.insertRow(row_number)
             for column_number, data in enumerate(row_data[1:]):
-                self.table.setItem(row_number, column_num
+                self.table.setItem(row_number, column_number, QTableWidgetItem(str(data)))
+
+    def add_password(self):
+        title, ok = QInputDialog.getText(self, "Title", "Enter title:")
+        if not ok or not title:
+            return
+
+        username, ok = QInputDialog.getText(self, "Username", "Enter username:")
+        if not ok:
+            return
+
+        generator = PasswordGenerator()
+        password = generator.generate()
+
+        note, ok = QInputDialog.getText(self, "Note", "Enter note (optional):")
+        if not ok:
+            note = ""
+
+        self.db.add_password(title, username, password, note)
+        self.load_passwords()
+        QMessageBox.information(self, "Password Added", f"Generated password: {password}")
+
+    def delete_password(self):
+        selected_row = self.table.currentRow()
+        if selected_row < 0:
+            QMessageBox.warning(self, "No Selection", "Please select a password to delete.")
+            return
+
+        record_id = self.table.item(selected_row, 0).text()  # ID хранится в первом столбце
+        self.db.delete_password(int(record_id))
+        self.load_passwords()
+        QMessageBox.information(self, "Password Deleted", "The selected password was deleted.")
+        
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    manager = PasswordManager()
+    manager.show()
+    sys.exit(app.exec())
