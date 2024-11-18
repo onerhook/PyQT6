@@ -2,10 +2,9 @@ import sys
 import csv
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton, QLineEdit,
                              QLabel, QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QInputDialog,
-                             QHBoxLayout, QFileDialog)
-from PyQt6.QtGui import QGuiApplication
+                             QHBoxLayout, QFileDialog, QDialog, QCheckBox, QSpinBox, QTextEdit)
+from PyQt6.QtGui import QGuiApplication, QPalette, QColor
 from PyQt6.QtCore import Qt
-import sqlite3
 from db_handler import DBHandler
 from password_generator import PasswordGenerator
 
@@ -13,41 +12,45 @@ class PasswordManager(QMainWindow):
     def __init__(self):
         super().__init__()
         self.db = DBHandler()
-        self.initUI()
+        self.password_generator_settings = {
+            "length": 12,
+            "use_digits": True,
+            "use_special_chars": True
+        }
+        self.show_passwords = False
+        self.dark_theme_enabled = False
 
-    def initUI(self):
+        self.init_ui()
+
+    def init_ui(self):
         self.setWindowTitle("Password Manager")
-        self.setGeometry(200, 200, 600, 400)
-        self.show_passwords = False  # Переменная для отслеживания видимости паролей
+        self.setGeometry(200, 200, 800, 600)
 
         main_layout = QVBoxLayout()
 
-        # Поле для фильтрации
+        # Filter field
         self.filter_input = QLineEdit()
         self.filter_input.setPlaceholderText("Filter by title or username")
         self.filter_input.textChanged.connect(self.load_passwords)
         main_layout.addWidget(self.filter_input)
 
-        # Таблица для отображения паролей
+        # Password table
         self.table = QTableWidget()
         self.table.setColumnCount(4)
         self.table.setHorizontalHeaderLabels(["Title", "Username", "Password", "Note"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         main_layout.addWidget(self.table)
 
-        # Кнопки для управления
+        # Button panel
         button_layout = QHBoxLayout()
-        self.add_button = QPushButton("Add New Password")
+
+        self.add_button = QPushButton("Add Password")
         self.add_button.clicked.connect(self.add_password)
         button_layout.addWidget(self.add_button)
 
         self.delete_button = QPushButton("Delete Selected")
         self.delete_button.clicked.connect(self.delete_password)
         button_layout.addWidget(self.delete_button)
-
-        self.copy_button = QPushButton("Copy Password")
-        self.copy_button.clicked.connect(self.copy_password)
-        button_layout.addWidget(self.copy_button)
 
         self.edit_button = QPushButton("Edit Selected")
         self.edit_button.clicked.connect(self.edit_password)
@@ -57,12 +60,149 @@ class PasswordManager(QMainWindow):
         self.visibility_button.clicked.connect(self.toggle_password_visibility)
         button_layout.addWidget(self.visibility_button)
 
+        self.settings_button = QPushButton("Password Settings")
+        self.settings_button.clicked.connect(self.open_password_settings)
+        button_layout.addWidget(self.settings_button)
+
+        self.export_button = QPushButton("Export Passwords")
+        self.export_button.clicked.connect(self.export_passwords)
+        button_layout.addWidget(self.export_button)
+
+        self.import_button = QPushButton("Import Passwords")
+        self.import_button.clicked.connect(self.import_passwords)
+        button_layout.addWidget(self.import_button)
+
+        self.theme_button = QPushButton("Toggle Theme")
+        self.theme_button.clicked.connect(self.toggle_theme)
+        button_layout.addWidget(self.theme_button)
+
+        self.help_button = QPushButton("Help")
+        self.help_button.clicked.connect(self.show_help)
+        button_layout.addWidget(self.help_button)
+
         main_layout.addLayout(button_layout)
 
         container = QWidget()
         container.setLayout(main_layout)
         self.setCentralWidget(container)
+
         self.load_passwords()
+
+    def toggle_theme(self):
+        palette = QApplication.instance().palette()
+        if self.dark_theme_enabled:
+            # Revert to default light theme
+            QApplication.instance().setPalette(QPalette())
+            self.dark_theme_enabled = False
+        else:
+            # Apply dark theme
+            dark_palette = QPalette()
+            dark_palette.setColor(QPalette.ColorRole.Window, QColor(53, 53, 53))
+            dark_palette.setColor(QPalette.ColorRole.WindowText, QColor(220, 220, 220))
+            dark_palette.setColor(QPalette.ColorRole.Base, QColor(35, 35, 35))
+            dark_palette.setColor(QPalette.ColorRole.AlternateBase, QColor(53, 53, 53))
+            dark_palette.setColor(QPalette.ColorRole.ToolTipBase, QColor(220, 220, 220))
+            dark_palette.setColor(QPalette.ColorRole.ToolTipText, QColor(220, 220, 220))
+            dark_palette.setColor(QPalette.ColorRole.Text, QColor(220, 220, 220))
+            dark_palette.setColor(QPalette.ColorRole.Button, QColor(53, 53, 53))
+            dark_palette.setColor(QPalette.ColorRole.ButtonText, QColor(220, 220, 220))
+            dark_palette.setColor(QPalette.ColorRole.Highlight, QColor(42, 130, 218))
+            dark_palette.setColor(QPalette.ColorRole.HighlightedText, QColor(220, 220, 220))
+            QApplication.instance().setPalette(dark_palette)
+            self.dark_theme_enabled = True
+
+    def show_help(self):
+        help_dialog = QDialog(self)
+        help_dialog.setWindowTitle("Help")
+        help_dialog.setGeometry(300, 300, 500, 400)
+
+        layout = QVBoxLayout(help_dialog)
+        help_text = QTextEdit(help_dialog)
+        help_text.setReadOnly(True)
+        help_text.setText("""
+        Welcome to Password Manager!
+
+        Features:
+        - Add, edit, and delete passwords.
+        - Filter passwords by title or username.
+        - Import/export password data.
+        - Toggle between light and dark themes.
+        - Configure password generation settings.
+        - Securely manage your credentials.
+
+        Buttons:
+        - Add Password: Create a new password entry.
+        - Delete Selected: Remove the selected password.
+        - Show/Hide Passwords: Toggle password visibility.
+        - Password Settings: Adjust generator preferences.
+        - Toggle Theme: Switch between light and dark themes.
+        - Help: View this help dialog.
+        """)
+        layout.addWidget(help_text)
+        help_dialog.setLayout(layout)
+        help_dialog.exec()
+
+    def delete_password(self):
+        selected_row = self.table.currentRow()
+        if selected_row == -1:
+            QMessageBox.warning(self, "Error", "Please select a row to delete.")
+            return
+
+        title = self.table.item(selected_row, 0).text()
+        username = self.table.item(selected_row, 1).text()
+
+        confirmation = QMessageBox.question(
+            self,
+            "Delete Password",
+            f"Are you sure you want to delete the password for {title} ({username})?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+
+        if confirmation == QMessageBox.StandardButton.Yes:
+            self.db.delete_password(title, username)
+            self.load_passwords()
+            QMessageBox.information(self, "Success", "Password deleted successfully.")
+
+
+    def open_password_settings(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Password Generator Settings")
+
+        layout = QVBoxLayout(dialog)
+
+        # Password length
+        length_label = QLabel("Password Length:")
+        layout.addWidget(length_label)
+
+        length_spinbox = QSpinBox()
+        length_spinbox.setMinimum(6)
+        length_spinbox.setMaximum(32)
+        length_spinbox.setValue(self.password_generator_settings["length"])
+        layout.addWidget(length_spinbox)
+
+        # Include digits
+        digits_checkbox = QCheckBox("Include Digits")
+        digits_checkbox.setChecked(self.password_generator_settings["use_digits"])
+        layout.addWidget(digits_checkbox)
+
+        # Include special characters
+        special_chars_checkbox = QCheckBox("Include Special Characters")
+        special_chars_checkbox.setChecked(self.password_generator_settings["use_special_chars"])
+        layout.addWidget(special_chars_checkbox)
+
+        # Save button
+        save_button = QPushButton("Save")
+        save_button.clicked.connect(lambda: self.save_password_settings(dialog, length_spinbox, digits_checkbox, special_chars_checkbox))
+        layout.addWidget(save_button)
+
+        dialog.setLayout(layout)
+        dialog.exec()
+
+    def save_password_settings(self, dialog, length_spinbox, digits_checkbox, special_chars_checkbox):
+        self.password_generator_settings["length"] = length_spinbox.value()
+        self.password_generator_settings["use_digits"] = digits_checkbox.isChecked()
+        self.password_generator_settings["use_special_chars"] = special_chars_checkbox.isChecked()
+        dialog.accept()
 
 
     def load_passwords(self):
@@ -105,19 +245,6 @@ class PasswordManager(QMainWindow):
         self.load_passwords()
         QMessageBox.information(self, "Password Added", f"Generated password: {password}")
 
-    def delete_password(self):
-        row = self.table.currentRow()
-        if row == -1:
-            QMessageBox.warning(self, "Delete Error", "Please select a password to delete.")
-            return
-
-        password_id = self.table.item(row, 0).text()  # Получаем ID пароля (первая колонка)
-        try:
-            self.db.delete_password(password_id)
-            self.load_passwords()
-            QMessageBox.information(self, "Password Deleted", "The password has been deleted.")
-        except Exception as e:
-            QMessageBox.warning(self, "Delete Error", f"Error while deleting password: {e}")
 
     def copy_password(self):
         try:
