@@ -1,3 +1,5 @@
+#exceptions.py
+
 class PasswordManagerError(Exception):
     """Базовый класс для исключений в менеджере паролей."""
     pass
