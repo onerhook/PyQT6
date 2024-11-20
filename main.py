@@ -1,14 +1,17 @@
-#main.py
+# main.py
 
 import sys
+import re
 import csv
-from PyQt6.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton, QLineEdit,
-                             QLabel, QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QInputDialog,
-                             QHBoxLayout, QFileDialog, QDialog, QCheckBox, QSpinBox, QTextEdit)
-from PyQt6.QtGui import QGuiApplication, QPalette, QColor
-from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import (
+    QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton, QLineEdit,
+    QLabel, QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QInputDialog,
+    QHBoxLayout, QFileDialog, QDialog, QCheckBox, QSpinBox, QTextEdit, QProgressBar
+)
+from PyQt6.QtGui import QPalette, QColor
 from db_handler import DBHandler
 from password_generator import PasswordGenerator
+
 
 class PasswordManager(QMainWindow):
     def __init__(self):
@@ -23,62 +26,63 @@ class PasswordManager(QMainWindow):
         self.dark_theme_enabled = False
 
         self.init_ui()
-
+        
+    
     def init_ui(self):
-        self.setWindowTitle("Password Manager")
+        self.setWindowTitle("Менеджер Паролей")
         self.setGeometry(200, 200, 800, 600)
 
         main_layout = QVBoxLayout()
 
-        # Filter field
+        # Поле фильтрации
         self.filter_input = QLineEdit()
-        self.filter_input.setPlaceholderText("Filter by title or username")
+        self.filter_input.setPlaceholderText("Фильтровать по названию или имени пользователя")
         self.filter_input.textChanged.connect(self.load_passwords)
         main_layout.addWidget(self.filter_input)
 
-        # Password table
+        # Таблица паролей
         self.table = QTableWidget()
         self.table.setColumnCount(4)
-        self.table.setHorizontalHeaderLabels(["Title", "Username", "Password", "Note"])
+        self.table.setHorizontalHeaderLabels(["ID", "Имя пользователя", "Пароль", "Заметка"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         main_layout.addWidget(self.table)
 
-        # Button panel
+        # Панель кнопок
         button_layout = QHBoxLayout()
 
-        self.add_button = QPushButton("Add Password")
+        self.add_button = QPushButton("Добавить пароль")
         self.add_button.clicked.connect(self.add_password)
         button_layout.addWidget(self.add_button)
 
-        self.delete_button = QPushButton("Delete Selected")
+        self.refresh_button = QPushButton("Обновить")
+        self.refresh_button.clicked.connect(self.refresh_data)
+        button_layout.addWidget(self.refresh_button)
+
+        self.delete_button = QPushButton("Удалить выделенное")
         self.delete_button.clicked.connect(self.delete_password)
         button_layout.addWidget(self.delete_button)
 
-        self.edit_button = QPushButton("Edit Selected")
-        self.edit_button.clicked.connect(self.edit_password)
-        button_layout.addWidget(self.edit_button)
-
-        self.visibility_button = QPushButton("Show/Hide Passwords")
+        self.visibility_button = QPushButton("Показать/Скрыть пароли")
         self.visibility_button.clicked.connect(self.toggle_password_visibility)
         button_layout.addWidget(self.visibility_button)
 
-        self.settings_button = QPushButton("Password Settings")
+        self.settings_button = QPushButton("Настройки генератора")
         self.settings_button.clicked.connect(self.open_password_settings)
         button_layout.addWidget(self.settings_button)
 
-        self.export_button = QPushButton("Export Passwords")
+        self.export_button = QPushButton("Экспорт паролей")
         self.export_button.clicked.connect(self.export_passwords)
         button_layout.addWidget(self.export_button)
 
-        self.import_button = QPushButton("Import Passwords")
+        self.import_button = QPushButton("Импорт паролей")
         self.import_button.clicked.connect(self.import_passwords)
         button_layout.addWidget(self.import_button)
 
-        self.theme_button = QPushButton("Toggle Theme")
+        self.theme_button = QPushButton("Сменить тему")
         self.theme_button.clicked.connect(self.toggle_theme)
         button_layout.addWidget(self.theme_button)
 
-        self.help_button = QPushButton("Help")
+        self.help_button = QPushButton("Помощь")
         self.help_button.clicked.connect(self.show_help)
         button_layout.addWidget(self.help_button)
 
@@ -93,11 +97,9 @@ class PasswordManager(QMainWindow):
     def toggle_theme(self):
         palette = QApplication.instance().palette()
         if self.dark_theme_enabled:
-            # Revert to default light theme
             QApplication.instance().setPalette(QPalette())
             self.dark_theme_enabled = False
         else:
-            # Apply dark theme
             dark_palette = QPalette()
             dark_palette.setColor(QPalette.ColorRole.Window, QColor(53, 53, 53))
             dark_palette.setColor(QPalette.ColorRole.WindowText, QColor(220, 220, 220))
@@ -115,65 +117,74 @@ class PasswordManager(QMainWindow):
 
     def show_help(self):
         help_dialog = QDialog(self)
-        help_dialog.setWindowTitle("Help")
+        help_dialog.setWindowTitle("Помощь")
         help_dialog.setGeometry(300, 300, 500, 400)
 
         layout = QVBoxLayout(help_dialog)
         help_text = QTextEdit(help_dialog)
         help_text.setReadOnly(True)
-        help_text.setText("""
-        Welcome to Password Manager!
+        help_text.setText("""\
+Добро пожаловать в Менеджер Паролей!
 
-        Features:
-        - Add, edit, and delete passwords.
-        - Filter passwords by title or username.
-        - Import/export password data.
-        - Toggle between light and dark themes.
-        - Configure password generation settings.
-        - Securely manage your credentials.
+Возможности:
+- Добавление и удаление паролей.
+- Фильтрация паролей по названию или имени пользователя.
+- Импорт/экспорт данных о паролях.
+- Смена темы приложения.
+- Настройки генерации паролей.
+- Удобное управление вашими учетными данными.
 
-        Buttons:
-        - Add Password: Create a new password entry.
-        - Delete Selected: Remove the selected password.
-        - Show/Hide Passwords: Toggle password visibility.
-        - Password Settings: Adjust generator preferences.
-        - Toggle Theme: Switch between light and dark themes.
-        - Help: View this help dialog.
-        """)
+Кнопки:
+- Добавить пароль: Создать новую запись.
+- Удалить выделенное: Удалить выбранный пароль.
+- Показать/Скрыть пароли: Переключить видимость паролей.
+- Настройки генератора: Изменить параметры генерации.
+- Экспорт/Импорт: Сохранить или загрузить данные.
+- Сменить тему: Переключить светлую/темную тему.
+""")
         layout.addWidget(help_text)
         help_dialog.setLayout(layout)
         help_dialog.exec()
 
     def delete_password(self):
+        # Получаем индекс выбранной строки
         selected_row = self.table.currentRow()
-        if selected_row == -1:
-            QMessageBox.warning(self, "Error", "Please select a row to delete.")
+        
+        # Проверяем, что строка выбрана (индекс больше или равен 0)
+        if selected_row < 0:
+            QMessageBox.warning(self, 'Предупреждение', 'Пожалуйста, выберите строку для удаления.')
             return
 
-        title = self.table.item(selected_row, 0).text()
-        username = self.table.item(selected_row, 1).text()
+        # Получаем ID пароля из первой ячейки выбранной строки (предположим, что это ID)
+        id_item = self.table.item(selected_row, 0)  # ID должно быть в первой ячейке, если вы его добавляли в таблицу
+        if id_item is None:
+            QMessageBox.warning(self, 'Ошибка', 'Не удалось найти ID для удаления.')
+            return
+        
+        password_id = int(id_item.text())  # Преобразуем в целое число для использования в SQL-запросе
 
-        confirmation = QMessageBox.question(
-            self,
-            "Delete Password",
-            f"Are you sure you want to delete the password for {title} ({username})?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
+        # Создаём объект DBHandler для работы с базой данных
+        db_handler = DBHandler()
 
-        if confirmation == QMessageBox.StandardButton.Yes:
-            self.db.delete_password(title, username)
-            self.load_passwords()
-            QMessageBox.information(self, "Success", "Password deleted successfully.")
+        # Удаляем пароль из базы данных
+        try:
+            db_handler.delete_password(password_id)  # Удаляем пароль по ID из базы данных
+            self.table.removeRow(selected_row)  # Удаляем строку из таблицы в интерфейсе
 
+            # Уведомляем пользователя об успешном удалении
+            QMessageBox.information(self, 'Успех', 'Пароль был успешно удалён.')
+
+        except Exception as e:
+            QMessageBox.critical(self, 'Ошибка', f'Не удалось удалить пароль: {e}')
 
     def open_password_settings(self):
         dialog = QDialog(self)
-        dialog.setWindowTitle("Password Generator Settings")
+        dialog.setWindowTitle("Настройки генератора паролей")
 
         layout = QVBoxLayout(dialog)
 
-        # Password length
-        length_label = QLabel("Password Length:")
+        # Длина пароля
+        length_label = QLabel("Длина пароля:")
         layout.addWidget(length_label)
 
         length_spinbox = QSpinBox()
@@ -182,18 +193,18 @@ class PasswordManager(QMainWindow):
         length_spinbox.setValue(self.password_generator_settings["length"])
         layout.addWidget(length_spinbox)
 
-        # Include digits
-        digits_checkbox = QCheckBox("Include Digits")
+        # Включить цифры
+        digits_checkbox = QCheckBox("Включить цифры")
         digits_checkbox.setChecked(self.password_generator_settings["use_digits"])
         layout.addWidget(digits_checkbox)
 
-        # Include special characters
-        special_chars_checkbox = QCheckBox("Include Special Characters")
+        # Включить специальные символы
+        special_chars_checkbox = QCheckBox("Включить спецсимволы")
         special_chars_checkbox.setChecked(self.password_generator_settings["use_special_chars"])
         layout.addWidget(special_chars_checkbox)
 
-        # Save button
-        save_button = QPushButton("Save")
+        # Сохранить настройки
+        save_button = QPushButton("Сохранить")
         save_button.clicked.connect(lambda: self.save_password_settings(dialog, length_spinbox, digits_checkbox, special_chars_checkbox))
         layout.addWidget(save_button)
 
@@ -206,174 +217,279 @@ class PasswordManager(QMainWindow):
         self.password_generator_settings["use_special_chars"] = special_chars_checkbox.isChecked()
         dialog.accept()
 
-
     def load_passwords(self):
-        filter_text = self.filter_input.text()
         self.table.setRowCount(0)
-        passwords = self.db.get_passwords(filter_text)  # Предполагается, что результат содержит ID
-        
+        passwords = self.db.get_passwords(self.filter_input.text())
         for row_number, row_data in enumerate(passwords):
             self.table.insertRow(row_number)
-
-            # Добавляем ID в скрытую колонку (нулевой индекс)
-            id_item = QTableWidgetItem(str(row_data[0]))  # ID
-            id_item.setFlags(id_item.flags() & ~Qt.ItemFlag.ItemIsEditable)  # Делает ID только для чтения
-            self.table.setItem(row_number, 0, id_item)
-
-            # Добавляем остальные данные
-            for column_number, data in enumerate(row_data[1:], start=1):
-                self.table.setItem(row_number, column_number, QTableWidgetItem(str(data)))
-        
-        self.table.setColumnHidden(0, True)  # Скрываем колонку ID
-
-
-    def add_password(self):
-        title, ok = QInputDialog.getText(self, "Title", "Enter title:")
-        if not ok or not title:
-            return
-
-        username, ok = QInputDialog.getText(self, "Username", "Enter username:")
-        if not ok:
-            return
-
-        generator = PasswordGenerator()
-        password = generator.generate()
-
-        note, ok = QInputDialog.getText(self, "Note", "Enter note (optional):")
-        if not ok:
-            note = ""
-
-        self.db.add_password(title, username, password, note)
-        self.load_passwords()
-        QMessageBox.information(self, "Password Added", f"Generated password: {password}")
-
-
-    def copy_password(self):
-        try:
-            row = self.table.currentRow()  # Текущая выделенная строка
-            if row == -1:
-                QMessageBox.warning(self, "Copy Error", "Please select a password to copy.")
-                return
-
-            # Получаем ID из первой колонки
-            password_id_item = self.table.item(row, 0)
-            if not password_id_item:
-                QMessageBox.warning(self, "Copy Error", "Could not retrieve the password ID.")
-                return
-
-            password_id = int(password_id_item.text())  # Преобразуем ID в число
-
-            # Получаем пароль из базы данных
-            password = self.db.get_password_by_id(password_id)
-            if not password:
-                QMessageBox.warning(self, "Copy Error", "Password not found in the database.")
-                return
-
-            # Копируем пароль в буфер обмена
-            QGuiApplication.clipboard().setText(password)
-            QMessageBox.information(self, "Password Copied", "Password has been copied to clipboard.")
-
-        except ValueError:
-            QMessageBox.critical(self, "Error", "Invalid password ID.")
-        except Exception as e:
-            QMessageBox.critical(self, "Unexpected Error", f"An unexpected error occurred:\n{str(e)}")
-
-
-
-    def toggle_password_visibility(self):
-        if self.show_passwords:
-            self.show_passwords = False
-            self.load_passwords()
-        else:
-            self.show_passwords = True
-            self.load_passwords()
-            
-    def edit_password(self):
-        row = self.table.currentRow()
-        if row == -1:
-            QMessageBox.warning(self, "Edit Error", "Please select a password to edit.")
-            return
-
-        # Получаем текущие значения
-        password_id = self.table.item(row, 0).text()
-        title = self.table.item(row, 0).text()
-        username = self.table.item(row, 1).text()
-        password = self.table.item(row, 2).text()
-        note = self.table.item(row, 3).text()
-
-        # Диалоги для ввода новых данных
-        new_title, ok = QInputDialog.getText(self, "Edit Title", "Enter new title:", text=title)
-        if not ok or not new_title:
-            return
-
-        new_username, ok = QInputDialog.getText(self, "Edit Username", "Enter new username:", text=username)
-        if not ok:
-            return
-
-        new_password, ok = QInputDialog.getText(self, "Edit Password", "Enter new password:", text=password)
-        if not ok:
-            return
-
-        new_note, ok = QInputDialog.getText(self, "Edit Note", "Enter new note:", text=note)
-        if not ok:
-            new_note = ""
-
-        # Обновляем запись в базе данных
-        self.db.update_password(password_id, new_title, new_username, new_password, new_note)
-        self.load_passwords()
-        QMessageBox.information(self, "Password Updated", "Password has been updated successfully.")
-
-
-    def load_passwords(self):
-        filter_text = self.filter_input.text()
-        self.table.setRowCount(0)
-        passwords = self.db.get_passwords(filter_text)
-        for row_number, row_data in enumerate(passwords):
-            self.table.insertRow(row_number)
-            for column_number, data in enumerate(row_data[1:]):
+            self.table.setItem(row_number, 0, QTableWidgetItem(str(row_data[0])))  # ID
+            for column_number, data in enumerate(row_data[1:], start=1):  # Начинаем с 1 для остальных колонок
                 if column_number == 2 and not self.show_passwords:
                     self.table.setItem(row_number, column_number, QTableWidgetItem("***"))
                 else:
                     self.table.setItem(row_number, column_number, QTableWidgetItem(str(data)))
 
-    # Функция экспорта паролей в CSV
+
+    def toggle_password_visibility(self):
+        self.show_passwords = not self.show_passwords
+        self.load_passwords()
+
+    def add_password(self):
+        # Выбор способа добавления пароля
+        choice, ok = QInputDialog.getItem(
+            self,
+            "Добавить пароль",
+            "Выберите метод добавления пароля:",
+            ["Вручную", "Сгенерировать"],
+            0, False
+        )
+
+        if ok:
+            if choice == "Вручную":
+                self.add_password_manually()
+            else:
+                self.add_password_generated()
+
+    def add_password_manually(self):
+        """Окно для ввода пароля вручную"""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Добавить пароль вручную")
+
+        layout = QVBoxLayout(dialog)
+
+        name_input = QLineEdit()
+        name_input.setPlaceholderText("Заметка(не обязательно)")
+        layout.addWidget(name_input)
+
+        username_input = QLineEdit()
+        username_input.setPlaceholderText("Имя пользователя")
+        layout.addWidget(username_input)
+
+        password_input = QLineEdit()
+        password_input.setEchoMode(QLineEdit.EchoMode.Password)
+        password_input.setPlaceholderText("Пароль")
+        layout.addWidget(password_input)
+
+        # Прогресс-бар для сложности пароля
+        complexity_progress = QProgressBar()
+        complexity_progress.setMaximum(5)  # Максимальное значение сложности (5 факторов)
+        complexity_progress.setValue(0)
+        layout.addWidget(complexity_progress)
+
+        password_strength_label = QLabel("Сложность пароля: Низкая")
+        layout.addWidget(password_strength_label)
+
+        def update_password_complexity():
+            password = password_input.text()
+            try:
+                complexity = self.evaluate_complexity(password)
+                complexity_progress.setValue(complexity)
+
+                # Обновляем текст в зависимости от сложности
+                if complexity == 0:
+                    password_strength_label.setText("Сложность пароля: Очень слабый")
+                elif complexity == 1:
+                    password_strength_label.setText("Сложность пароля: Слабый")
+                elif complexity == 2:
+                    password_strength_label.setText("Сложность пароля: Средний")
+                elif complexity == 3:
+                    password_strength_label.setText("Сложность пароля: Хороший")
+                elif complexity == 4 or complexity == 5:
+                    password_strength_label.setText("Сложность пароля: Очень сильный")
+            except Exception as e:
+                QMessageBox.warning(self, "Ошибка", f"Ошибка при вычислении сложности пароля: {str(e)}")
+
+        # Подключение к сигналу изменения текста в поле пароля
+        password_input.textChanged.connect(update_password_complexity)
+
+        save_button = QPushButton("Сохранить")
+        save_button.clicked.connect(lambda: self.save_password_manually(dialog, name_input, username_input, password_input))
+        layout.addWidget(save_button)
+
+        dialog.setLayout(layout)
+        dialog.exec()
+
+
+
+
+    @staticmethod
+    def evaluate_complexity(password):
+        """Оценка сложности пароля"""
+        length_score = len(password) >= 12
+        has_uppercase = bool(re.search(r"[A-Z]", password))
+        has_lowercase = bool(re.search(r"[a-z]", password))
+        has_digit = bool(re.search(r"\d", password))
+        has_special = bool(re.search(r"[!@#$%^&*(),.?\":{}|<>]", password))
+
+        complexity = 0
+        if length_score:
+            complexity += 1
+        if has_uppercase:
+            complexity += 1
+        if has_lowercase:
+            complexity += 1
+        if has_digit:
+            complexity += 1
+        if has_special:
+            complexity += 1
+
+        return complexity
+
+
+    def add_password_generated(self):
+        # Окно генерации пароля
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Генерация пароля")
+
+        layout = QVBoxLayout(dialog)
+
+        password_display = QLineEdit()
+        password_display.setPlaceholderText("Сгенерированный пароль")
+        password_display.setReadOnly(True)
+        layout.addWidget(password_display)
+
+        # Поле для ввода имени пользователя
+        name_input = QLineEdit()
+        name_input.setPlaceholderText("Имя пользователя")
+        layout.addWidget(name_input)
+
+        # Поле для заметки
+        note_input = QTextEdit()
+        note_input.setPlaceholderText("Заметка (необязательно)")
+        layout.addWidget(note_input)
+
+        # Прогресс-бар
+        progress_bar = QProgressBar()
+        progress_bar.setMaximum(100)
+        layout.addWidget(progress_bar)
+
+        generate_button = QPushButton("Сгенерировать")
+        generate_button.clicked.connect(lambda: self.generate_password(dialog, password_display, progress_bar))
+        layout.addWidget(generate_button)
+
+        save_button = QPushButton("Сохранить")
+        save_button.clicked.connect(lambda: self.save_generated_password(dialog, password_display, name_input, note_input))
+        layout.addWidget(save_button)
+
+        dialog.setLayout(layout)
+        dialog.exec()
+
+
+
+    def generate_password(self, dialog, password_display, progress_bar):
+        try:   
+            password_length = self.password_generator_settings["length"]
+            use_special_chars = self.password_generator_settings["use_special_chars"]
+            use_digits = self.password_generator_settings["use_digits"]
+
+            # Создаем генератор паролей
+            generator = PasswordGenerator(
+                length=password_length, 
+                use_special_chars=use_special_chars, 
+                use_digits=use_digits
+            )
+
+            # Генерируем пароль
+            password = generator.generate()
+            password_display.setText(password)  # Отображаем пароль
+            progress_bar.setValue(100)  # Устанавливаем прогресс на 100%
+        except ValueError as e:
+            QMessageBox.warning(self, "Ошибка", f"Не удалось сгенерировать пароль: {e}")
+        except Exception as e:
+            QMessageBox.warning(self, "Ошибка", f"Произошла неизвестная ошибка: {e}")
+
+
+
+    def update_progress(self, progress, password, progress_bar, password_display, generator, timer):
+        password = generator.generate_password()
+        progress += 1
+        progress_bar.setValue(progress)
+        password_display.setText(password)
+
+        if progress >= 100:
+            timer.stop()
+            QMessageBox.information(self, "Генерация завершена", "Пароль сгенерирован.")
+            password_display.setText(password)
+            generator.stop_generating()  # Переменная состояния остановки генерации
+
+    def save_password_manually(self, dialog, name_input, username_input, password_input, note_input=None):
+        # Перепутаны местами переменные для пароля и имени пользователя
+        name = username_input.text().strip()  # Имя пользователя
+        username = password_input.text().strip()  # Пароль
+        password = name_input.text().strip()  # Название
+        note = note_input.text().strip() if note_input else ""  # Заметка (если есть)
+
+        # Проверка, что обязательные поля заполнены
+        if not name or not username or not password:
+            QMessageBox.warning(self, "Ошибка", "Пожалуйста, заполните все обязательные поля.")
+            return
+
+        # Сохраняем пароль в базе данных
+        self.db.add_password(name, username, password, note)
+        
+        # Закрываем диалоговое окно после сохранения
+        dialog.accept()
+        self.load_passwords()
+        QMessageBox.information(self, "Успешно", "Пароль успешно сохранен.")
+
+
+    def save_generated_password(self, dialog, password_display, name_input, note_input):
+        """Сохраняет сгенерированный пароль в базу данных."""
+        try:
+            password = password_display.text()  # Получаем сгенерированный пароль из виджета
+            name = name_input.text().strip()  # Получаем имя пользователя
+            note = note_input.toPlainText().strip()  # Получаем заметку (если есть)
+
+            # Проверяем, что все необходимые данные введены
+            if not name or not password:
+                QMessageBox.warning(dialog, 'Ошибка', 'Заполните все обязательные поля.')
+                return
+
+            # Добавляем пароль в базу данных
+            self.db.add_password(name, password, note)
+
+            QMessageBox.information(dialog, 'Успех', 'Пароль успешно сохранён.')
+            dialog.accept()  # Закрываем диалог
+        except Exception as e:
+            # Выводим подробное сообщение об ошибке
+            QMessageBox.critical(dialog, 'Ошибка', f'Не удалось сохранить пароль: {e}')
+            print(f"Ошибка при сохранении пароля: {e}")  # Выводим ошибку в консоль
+
+    def refresh_data(self):
+        self.load_passwords()
+
+
     def export_passwords(self):
-        file_name, _ = QFileDialog.getSaveFileName(self, "Save File", "", "CSV Files (*.csv)")
-        if not file_name:
-            return
+        file_path, _ = QFileDialog.getSaveFileName(self, "Экспортировать пароли", "", "CSV Files (*.csv)")
+        if file_path:
+            try:
+                passwords = self.db.get_all_passwords()
+                with open(file_path, "w", newline='', encoding="utf-8") as file:
+                    writer = csv.writer(file)
+                    writer.writerow(["Название", "Имя пользователя", "Пароль", "Заметка"])
+                    for password in passwords:
+                        writer.writerow(password)
+                QMessageBox.information(self, "Успешно", "Пароли успешно экспортированы.")
+            except Exception as e:
+                QMessageBox.warning(self, "Ошибка", f"Не удалось экспортировать пароли: {e}")
 
-        passwords = self.db.get_passwords("")
-        try:
-            with open(file_name, mode='w', newline='', encoding='utf-8') as file:
-                writer = csv.writer(file)
-                writer.writerow(["Title", "Username", "Password", "Note"])
-                for password in passwords:
-                    writer.writerow(password[1:])
-            QMessageBox.information(self, "Export Complete", "Passwords have been exported successfully.")
-        except Exception as e:
-            QMessageBox.warning(self, "Export Error", f"Error while exporting passwords: {e}")
-
-    # Функция импорта паролей из CSV
     def import_passwords(self):
-        file_name, _ = QFileDialog.getOpenFileName(self, "Open File", "", "CSV Files (*.csv)")
-        if not file_name:
-            return
-
-        try:
-            with open(file_name, mode='r', encoding='utf-8') as file:
-                reader = csv.reader(file)
-                next(reader)  # Пропускаем заголовок
-                for row in reader:
-                    if len(row) == 4:
-                        title, username, password, note = row
-                        self.db.add_password(title, username, password, note)
-            self.load_passwords()
-            QMessageBox.information(self, "Import Complete", "Passwords have been imported successfully.")
-        except Exception as e:
-            QMessageBox.warning(self, "Import Error", f"Error while importing passwords: {e}")
+        file_path, _ = QFileDialog.getOpenFileName(self, "Импортировать пароли", "", "CSV Files (*.csv)")
+        if file_path:
+            try:
+                with open(file_path, "r", newline='', encoding="utf-8") as file:
+                    reader = csv.reader(file)
+                    next(reader)  # пропускаем заголовок
+                    for row in reader:
+                        if row:  # проверка на пустые строки
+                            self.db.save_password(row[0], row[1], row[2], row[3])
+                self.load_passwords()
+                QMessageBox.information(self, "Успешно", "Пароли успешно импортированы.")
+            except Exception as e:
+                QMessageBox.warning(self, "Ошибка", f"Не удалось импортировать пароли: {e}")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    manager = PasswordManager()
-    manager.show()
+    window = PasswordManager()
+    window.show()
     sys.exit(app.exec())
