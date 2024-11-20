@@ -1,5 +1,4 @@
 # csv_handler.py
-
 import csv
 from db_handler import DBHandler
 
