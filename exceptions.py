@@ -1,4 +1,4 @@
-#exceptions.py
+# exceptions.py
 
 class PasswordManagerError(Exception):
     """Базовый класс для исключений в менеджере паролей."""
@@ -8,6 +8,7 @@ class DatabaseError(PasswordManagerError):
     """Исключение для ошибок базы данных."""
     pass
 
-class EncryptionError(PasswordManagerError):
-    """Исключение для ошибок шифрования и дешифрования."""
-    pass
+class PasswordStrengthError(PasswordManagerError):
+    """Исключение для слабых паролей."""
+    def __init__(self, message="Пароль слишком слабый."):
+        super().__init__(message)
