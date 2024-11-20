@@ -1,57 +1,67 @@
 #db_handler.py
 
 import sqlite3
-import os
-from cryptography.fernet import Fernet
 
 class DBHandler:
     def __init__(self, db_name="passwords.db"):
-        self.conn = sqlite3.connect(db_name)
+        self.db_name = db_name
         self.create_table()
 
     def create_table(self):
-        try:
-            with self.conn:
-                self.conn.execute('''CREATE TABLE IF NOT EXISTS passwords
-                                     (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                      title TEXT NOT NULL,
-                                      username TEXT NOT NULL,
-                                      password TEXT NOT NULL,
-                                      note TEXT)''')
-        except sqlite3.Error as e:
-            print(f"Error creating table: {e}")
+        """Создает таблицу, если она не существует."""
+        query = '''
+        CREATE TABLE IF NOT EXISTS passwords (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            username TEXT NOT NULL,
+            password TEXT NOT NULL,
+            note TEXT
+        )
+        '''
+        self.execute_query(query)
 
-    def add_password(self, title, username, password, note):
+    def execute_query(self, query, params=None):
+        """Выполняет SQL-запросы."""
+        if params is None:
+            params = ()
         try:
-            with self.conn:
-                self.conn.execute("INSERT INTO passwords (title, username, password, note) VALUES (?, ?, ?, ?)",
-                                  (title, username, password, note))
+            connection = sqlite3.connect(self.db_name)
+            cursor = connection.cursor()
+            cursor.execute(query, params)
+            result = cursor.fetchall()
+            connection.commit()
+            connection.close()
+            print(f"Executed query: {query} with params: {params}")  # Debug log
+            return result
         except sqlite3.Error as e:
-            print(f"Error adding password: {e}")
+            print(f"Ошибка базы данных: {e}")
+            return []
+        except Exception as e:
+            print(f"Общая ошибка: {e}")
+            return []
+
 
     def get_passwords(self, filter_text=""):
-        query = "SELECT id, title, username, password, note FROM passwords"
+        """Возвращает пароли с фильтрацией по тексту."""
+        query = "SELECT * FROM passwords"
         if filter_text:
-            query += " WHERE title LIKE ? OR username LIKE ?"
-            return self.conn.execute(query, (f"%{filter_text}%", f"%{filter_text}%")).fetchall()
-        return self.conn.execute(query).fetchall()
+            query += f" WHERE name LIKE ? OR username LIKE ?"
+            return self.execute_query(query, ('%' + filter_text + '%', '%' + filter_text + '%'))
+        return self.execute_query(query)
 
+    def add_password(self, name, username, password, note=""):
+        """Добавляет новый пароль в базу данных."""
+        query = "INSERT INTO passwords (name, username, password, note) VALUES (?, ?, ?, ?)"
+        print(f"Adding password with: {name}, {username}, {password}, {note}")  # Debug log
+        self.execute_query(query, (name, username, password, note))
 
 
     def delete_password(self, password_id):
-        try:
-            cursor = self.conn.cursor()
-            cursor.execute("DELETE FROM passwords WHERE id = ?", (password_id,))
-            self.conn.commit()
-        except sqlite3.Error as e:
-            print(f"Error deleting password: {e}")
+        """Удаляет пароль из базы данных по ID."""
+        query = "DELETE FROM passwords WHERE id = ?"
+        self.execute_query(query, (password_id,))
 
-
-    def get_password_by_id(self, password_id):
-        try:
-            cursor = self.conn.execute("SELECT password FROM passwords WHERE id = ?", (password_id,))
-            result = cursor.fetchone()
-            return result[0] if result else None
-        except sqlite3.Error as e:
-            print(f"Database error: {e}")
-            return None
+    def get_all_passwords(self):
+        """Получает все пароли."""
+        query = "SELECT * FROM passwords"
+        return self.execute_query(query)
