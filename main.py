@@ -1,3 +1,5 @@
+#main.py
+
 import sys
 import csv
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton, QLineEdit,
