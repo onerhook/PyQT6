@@ -1,6 +1,6 @@
 #db_handler.py
-
 import sqlite3
+
 
 class DBHandler:
     def __init__(self, db_name="passwords.db"):
@@ -8,7 +8,7 @@ class DBHandler:
         self.create_table()
 
     def create_table(self):
-        """Создает таблицу, если она не существует."""
+        """создает таблицу, если она не существует"""
         query = '''
         CREATE TABLE IF NOT EXISTS passwords (
             id INTEGER PRIMARY KEY,
@@ -21,7 +21,7 @@ class DBHandler:
         self.execute_query(query)
 
     def execute_query(self, query, params=None):
-        """Выполняет SQL-запросы."""
+        """выполняет sql-запросы"""
         if params is None:
             params = ()
         try:
@@ -31,7 +31,8 @@ class DBHandler:
             result = cursor.fetchall()
             connection.commit()
             connection.close()
-            print(f"Executed query: {query} with params: {params}")  # Debug log
+            # debug log
+            print(f"Выполнен запрос: {query} с параметрами: {params}")
             return result
         except sqlite3.Error as e:
             print(f"Ошибка базы данных: {e}")
@@ -40,28 +41,27 @@ class DBHandler:
             print(f"Общая ошибка: {e}")
             return []
 
-
     def get_passwords(self, filter_text=""):
-        """Возвращает пароли с фильтрацией по тексту."""
+        """возвращает пароли с фильтрацией по тексту"""
         query = "SELECT * FROM passwords"
         if filter_text:
-            query += f" WHERE name LIKE ? OR username LIKE ?"
+            query += " WHERE name LIKE ? OR username LIKE ?"
             return self.execute_query(query, ('%' + filter_text + '%', '%' + filter_text + '%'))
         return self.execute_query(query)
 
     def add_password(self, name, username, password, note=""):
-        """Добавляет новый пароль в базу данных."""
+        """добавляет новый пароль в базу данных"""
         query = "INSERT INTO passwords (name, username, password, note) VALUES (?, ?, ?, ?)"
-        print(f"Adding password with: {name}, {username}, {password}, {note}")  # Debug log
+        # debug log
+        print(f"Добавление пароля с: {name}, {username}, {password}, {note}")
         self.execute_query(query, (name, username, password, note))
 
-
     def delete_password(self, password_id):
-        """Удаляет пароль из базы данных по ID."""
+        """удаляет пароль из базы данных по id"""
         query = "DELETE FROM passwords WHERE id = ?"
         self.execute_query(query, (password_id,))
 
     def get_all_passwords(self):
-        """Получает все пароли."""
+        """получает все пароли"""
         query = "SELECT * FROM passwords"
         return self.execute_query(query)
