@@ -1,5 +1,4 @@
 # main.py
-# main.py
 
 import sys
 import re
