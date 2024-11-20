@@ -7,7 +7,7 @@ class CSVHandler:
         self.db_handler = db_handler
 
     def export_to_csv(self, file_name="пароли.csv"):
-        """Экспортирует данные из базы данных в CSV-файл."""
+        """экспортирует данные из базы данных в csv-файл"""
         passwords = self.db_handler.get_passwords()
         with open(file_name, "w", newline="") as file:
             writer = csv.writer(file)
@@ -15,10 +15,10 @@ class CSVHandler:
             writer.writerows(passwords)
 
     def import_from_csv(self, file_name="пароли.csv"):
-        """Импортирует данные из CSV-файла в базу данных."""
+        """импортирует данные из csv-файла в базу данных"""
         with open(file_name, "r") as file:
             reader = csv.reader(file)
-            next(reader)  # Пропустить заголовок
+            next(reader)  # пропустить заголовок
             for row in reader:
                 title, username, password, note = row
                 self.db_handler.add_password(title, username, password, note)
