@@ -311,7 +311,7 @@ class PasswordManager(QMainWindow):
     @staticmethod
     def evaluate_complexity(password):
         """оценка сложности пароля"""
-        length_score = len(password) >= 12
+        length_score = len(password) >= 8
         has_uppercase = bool(re.search(r"[A-Z]", password))
         has_lowercase = bool(re.search(r"[a-z]", password))
         has_digit = bool(re.search(r"\d", password))
